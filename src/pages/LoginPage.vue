@@ -3,7 +3,7 @@
   <q-layout view="lHh Lpr lFf">
     <q-page-container>
       
-      <q-page class="flex flex-center bg-blue-grey-1">
+      <q-page class="flex flex-center bg-blue-grey-1 q-pa-md">
         <q-card class="auth-card shadow-4">
           <q-card-section class="bg-blue-grey-9 text-white text-center q-py-lg">
             <q-icon name="account_balance" size="xl" class="q-mb-sm" />
@@ -28,8 +28,8 @@
                   {{ authStore.authError }}
                 </div>
 
-            <q-btn type="submit" class="full-width q-mt-sm" color="teal-9" label="Secure Login" :loading="authStore.isLoading" unelevated />
-            <q-btn flat class="full-width q-mt-sm text-grey-7" label="Forgot Password?" no-caps @click="forgotPasswordDialog = true" />
+                <q-btn type="submit" class="full-width q-mt-sm" color="teal-9" label="Secure Login" :loading="authStore.isLoading" unelevated />
+                <q-btn flat class="full-width q-mt-sm text-grey-7" label="Forgot Password?" no-caps @click="forgotPasswordDialog = true" />
               </q-form>
             </q-tab-panel>
 
@@ -48,74 +48,40 @@
           </q-tab-panels>
         </q-card>
       </q-page>
-<!-- NEW: Forgot Password Dialog -->
-    <q-dialog v-model="forgotPasswordDialog" @hide="resetEmailSent = false">
-      <q-card style="min-width: 350px; border-radius: 12px;">
-        <q-card-section class="bg-blue-grey-9 text-white">
-          <div class="text-h6">Reset Password</div>
-        </q-card-section>
 
-        <q-card-section class="q-pt-md">
-          <div v-if="resetEmailSent" class="text-center q-pa-md bg-teal-1 text-teal-10 rounded-borders text-weight-bold">
-            <q-icon name="mark_email_read" size="md" class="q-mb-sm" /><br>
-            Check your email for a secure reset link.
-          </div>
-          
-          <q-form v-else @submit="handleForgotPassword" class="q-gutter-md">
-            <div class="text-caption text-grey-8">Enter your email address and we'll send you a link to securely reset your password.</div>
-            <q-input v-model="resetEmail" type="email" label="Account Email" outlined dense required autofocus />
+      <!-- NEW: Forgot Password Dialog -->
+      <q-dialog v-model="forgotPasswordDialog" @hide="resetEmailSent = false">
+        <q-card style="min-width: 350px; border-radius: 12px;">
+          <q-card-section class="bg-blue-grey-9 text-white">
+            <div class="text-h6">Reset Password</div>
+          </q-card-section>
+
+          <q-card-section class="q-pt-md">
+            <div v-if="resetEmailSent" class="text-center q-pa-md bg-teal-1 text-teal-10 rounded-borders text-weight-bold">
+              <q-icon name="mark_email_read" size="md" class="q-mb-sm" /><br>
+              Check your email for a secure reset link.
+            </div>
             
-            <div v-if="authStore.authError" class="text-red-9 text-caption text-center">
-              {{ authStore.authError }}
-            </div>
+            <q-form v-else @submit="handleForgotPassword" class="q-gutter-md">
+              <div class="text-caption text-grey-8">Enter your email address and we'll send you a link to securely reset your password.</div>
+              <q-input v-model="resetEmail" type="email" label="Account Email" outlined dense required autofocus />
+              
+              <div v-if="authStore.authError" class="text-red-9 text-caption text-center">
+                {{ authStore.authError }}
+              </div>
 
-            <div class="row justify-end q-mt-md">
-              <q-btn flat label="Cancel" color="grey" v-close-popup />
-              <q-btn type="submit" label="Send Link" color="blue-grey-9" :loading="authStore.isLoading" unelevated />
-            </div>
-          </q-form>
-        </q-card-section>
-      </q-card>
-    </q-dialog>
+              <div class="row justify-end q-mt-md">
+                <q-btn flat label="Cancel" color="grey" v-close-popup />
+                <q-btn type="submit" label="Send Link" color="blue-grey-9" :loading="authStore.isLoading" unelevated />
+              </div>
+            </q-form>
+          </q-card-section>
+        </q-card>
+      </q-dialog>
+
     </q-page-container>
   </q-layout>
 </template>
-
-<script setup>
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore'
-
-const authStore = useAuthStore()
-const router = useRouter()
-
-const tab = ref('login')
-const email = ref('')
-const password = ref('')
-
-const handleLogin = async () => {
-  await authStore.login(email.value, password.value)
-  if (authStore.user) router.push('/') // Send to dashboard on success
-}
-
-const handleRegister = async () => {
-  await authStore.register(email.value, password.value)
-  if (authStore.user) router.push('/')
-}
-
-// Add these variables
-const forgotPasswordDialog = ref(false)
-const resetEmail = ref('')
-const resetEmailSent = ref(false)
-
-// Add this function
-const handleForgotPassword = async () => {
-  const result = await authStore.sendPasswordResetEmail(resetEmail.value)
-  if (!result.error) {
-    resetEmailSent.value = true // Show success message
-  }
-}
-</script>
 
 <style scoped>
 .auth-card {
@@ -124,4 +90,77 @@ const handleForgotPassword = async () => {
   border-radius: 12px;
   overflow: hidden;
 }
+
+/* Mobile responsiveness adjustments */
+@media (max-width: 600px) {
+  .auth-card {
+    max-width: 95vw;
+    box-shadow: none;
+    border: none;
+  }
+}
 </style>
+
+<script setup>
+import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore'
+import { useQuasar } from 'quasar' // Added this
+
+const authStore = useAuthStore()
+const router = useRouter()
+const $q = useQuasar() // Added this
+
+const tab = ref('login')
+const email = ref('')
+const password = ref('')
+const forgotPasswordDialog = ref(false)
+const resetEmail = ref('')
+const resetEmailSent = ref(false)
+
+// Function to clear the form
+const resetForm = () => {
+  email.value = ''
+  password.value = ''
+  resetEmail.value = ''
+}
+
+const handleLogin = async () => {
+  await authStore.login(email.value, password.value)
+  if (authStore.user) router.push('/')
+}
+
+const handleRegister = async () => {
+  const result = await authStore.register(email.value, password.value);
+
+  if (!result.error) {
+    // Show success notification
+    $q.notify({
+      type: 'positive',
+      color: 'teal-9',
+      message: 'Account created! Please check your email for a confirmation link.',
+      icon: 'mail',
+      timeout: 10000,
+      actions: [{ label: 'Dismiss', color: 'white' }]
+    });
+
+    // Clear form
+    resetForm();
+    // Optional: Switch back to login tab so they can sign in after confirming
+    tab.value = 'login' 
+  } else {
+    $q.notify({
+      type: 'negative',
+      message: result.message || 'Registration failed.',
+      icon: 'error'
+    });
+  }
+};
+
+const handleForgotPassword = async () => {
+  const result = await authStore.sendPasswordResetEmail(resetEmail.value)
+  if (!result.error) {
+    resetEmailSent.value = true
+  }
+}
+</script>
