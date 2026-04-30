@@ -21,18 +21,21 @@ export const useAuthStore = defineStore('authStore', {
       })
     },
 
-    async register(email, password) {
-      this.isLoading = true
-      this.authError = null
-      try {
-        const { error } = await supabase.auth.signUp({ email, password })
-        if (error) throw error
-      } catch (err) {
-        this.authError = err.message
-      } finally {
-        this.isLoading = false
-      }
-    },
+async register(email, password) {
+  this.isLoading = true;
+  this.authError = null;
+  try {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw error;
+    
+    return { error: false }; 
+  } catch (err) {
+    this.authError = err.message;
+    return { error: true, message: err.message };
+  } finally {
+    this.isLoading = false;
+  }
+},
 
     async login(email, password) {
       this.isLoading = true
