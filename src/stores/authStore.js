@@ -60,7 +60,7 @@ export const useAuthStore = defineStore('authStore', {
       financeStore.goals = [] // <--- Add this line!
     },
 
-    async sendPasswordResetEmail(email) {
+  async sendPasswordResetEmail(email) {
       this.isLoading = true
       this.authError = null
       try {
