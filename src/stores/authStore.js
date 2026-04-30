@@ -78,17 +78,47 @@ export const useAuthStore = defineStore('authStore', {
       }
     },
 
+    // Used for resetting a forgotten password via email link
     async updatePassword(newPassword) {
       this.isLoading = true
       this.authError = null
       try {
-        // updateUser automatically updates the currently logged-in user
         const { error } = await supabase.auth.updateUser({ password: newPassword })
         if (error) throw error
         return { error: false }
       } catch (err) {
         this.authError = err.message
         return { error: true }
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    // NEW: Securely change password from inside the app
+    async changePassword(currentPassword, newPassword) {
+      this.isLoading = true
+      this.authError = null
+      
+      try {
+        // 1. Get the current logged-in user to find their email address
+        const { data: { user }, error: userError } = await supabase.auth.getUser()
+        if (userError || !user) throw new Error('Could not verify your account. Please log out and back in.')
+
+        // 2. Verify current password
+        const { error: verifyError } = await supabase.auth.signInWithPassword({
+          email: user.email, 
+          password: currentPassword
+        })
+        if (verifyError) throw new Error('The current password you entered is incorrect.')
+
+        // 3. Update to the new password
+        const { error: updateError } = await supabase.auth.updateUser({ password: newPassword })
+        if (updateError) throw updateError
+
+        return { error: false }
+      } catch (err) {
+        this.authError = err.message
+        return { error: true, message: err.message }
       } finally {
         this.isLoading = false
       }

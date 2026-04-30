@@ -1,53 +1,74 @@
 <template>
-  <q-layout view="lHh Lpr lFf">
-    <q-page-container>
-      <q-page class="flex flex-center bg-blue-grey-1">
-        <q-card class="auth-card shadow-4" style="width: 100%; max-width: 400px; border-radius: 12px;">
-          <q-card-section class="bg-teal-9 text-white text-center q-py-lg">
-            <q-icon name="lock_reset" size="xl" class="q-mb-sm" />
-            <div class="text-h5 text-weight-bold">Create New Password</div>
-          </q-card-section>
+  <q-page class="flex flex-center bg-grey-1">
+    <q-card class="reset-card q-pa-lg">
+      <q-card-section class="text-center">
+        <div class="text-h5 text-weight-bold text-teal-9">Set New Password</div>
+        <div class="text-caption text-grey-7 q-mt-sm">
+          Please enter your new password below to regain access.
+        </div>
+      </q-card-section>
 
-          <q-card-section class="q-pa-md">
-            <q-form @submit="handlePasswordUpdate" class="q-gutter-md">
-              <q-input v-model="newPassword" type="password" label="New Password (Min 6 chars)" outlined dense required autofocus />
-              <q-input v-model="confirmPassword" type="password" label="Confirm New Password" outlined dense required :error="passwordMismatch" error-message="Passwords do not match" />
-              
-              <div v-if="authStore.authError" class="text-red-9 text-caption text-center">
-                {{ authStore.authError }}
-              </div>
+      <q-card-section>
+        <q-form @submit.prevent="handleReset" class="q-gutter-md">
+          <q-input
+            v-model="newPassword"
+            :type="showPass ? 'text' : 'password'"
+            label="New Password"
+            outlined
+            dense
+            :rules="[val => val.length >= 6 || 'Minimum 6 characters']"
+          >
+            <template v-slot:append>
+              <q-icon
+                :name="showPass ? 'visibility_off' : 'visibility'"
+                class="cursor-pointer"
+                @click="showPass = !showPass"
+              />
+            </template>
+          </q-input>
 
-              <q-btn type="submit" class="full-width q-mt-md" color="teal-9" label="Save & Login" :loading="authStore.isLoading" :disable="passwordMismatch" unelevated />
-            </q-form>
-          </q-card-section>
-        </q-card>
-      </q-page>
-    </q-page-container>
-  </q-layout>
+          <q-btn
+            type="submit"
+            label="Update and Login"
+            color="teal-9"
+            class="full-width"
+            unelevated
+            :loading="loading"
+          />
+        </q-form>
+      </q-card-section>
+    </q-card>
+  </q-page>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref } from 'vue'
 import { useAuthStore } from '@/stores/authStore'
+import { useRouter } from 'vue-router'
+import { useQuasar } from 'quasar'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const $q = useQuasar()
 
 const newPassword = ref('')
-const confirmPassword = ref('')
+const showPass = ref(false)
+const loading = ref(false)
 
-const passwordMismatch = computed(() => {
-  return confirmPassword.value !== '' && newPassword.value !== confirmPassword.value
-})
+const handleReset = async () => {
+  loading.value = true
+  const result = await authStore.updatePassword(newPassword.ref)
 
-const handlePasswordUpdate = async () => {
-  if (passwordMismatch.value) return
-
-  const result = await authStore.updatePassword(newPassword.value)
   if (!result.error) {
-    alert("Password updated successfully!")
-    router.push('/') // Send them to the dashboard
+    $q.notify({ color: 'teal-9', message: 'Password updated! Welcome back.' })
+    router.push('/') // Send them to the dashboard now that they have a new pass
+  } else {
+    $q.notify({ color: 'red-9', message: 'Error: ' + authStore.authError })
   }
+  loading.value = false
 }
 </script>
+
+<style scoped>
+.reset-card { width: 100%; max-width: 400px; border-radius: 12px; }
+</style>

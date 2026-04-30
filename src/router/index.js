@@ -9,11 +9,17 @@ import AccountsPage from '../pages/AccountsPage.vue'
 import SavingsPage from '../pages/SavingsPage.vue'
 import LoansPage from '../pages/LoansPage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
+import ResetPasswordPage from '@/pages/ResetPasswordPage.vue'
+import SettingsPage from '@/pages/SettingsPage.vue'
 
 const routes = [
   {
     path: '/login',
     component: LoginPage 
+  },
+  {
+    path: '/reset-password',
+    component: ResetPasswordPage
   },
   {
     path: '/',
@@ -26,6 +32,7 @@ const routes = [
       { path: 'accounts', component: AccountsPage },
       { path: 'savings', component: SavingsPage },
       { path: 'loans', component: LoansPage },
+      { path: 'settings', component: SettingsPage },
     ]
   }
 ]
@@ -43,6 +50,9 @@ router.beforeEach(async (to, from, next) => {
     await authStore.initialize()
   }
 
+  if (to.path === '/reset-password') {
+    return next()
+  }
   // If the route requires auth, and they don't have a user, kick them to login
   if (to.meta.requiresAuth && !authStore.user) {
     next('/login')
