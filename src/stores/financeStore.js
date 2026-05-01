@@ -193,6 +193,34 @@ export const useFinanceStore = defineStore("financeStore", {
         this.isLoading = false;
       }
     },
+    async endSchedule(id) {
+  this.isLoading = true
+  try {
+    const { error } = await supabase
+      .from('schedules')
+      .update({ 
+        is_active: false, 
+        status: 'completed' // Add this text column to your Supabase table
+      })
+      .eq('id', id)
+
+    if (error) throw error
+
+    // Update local state instantly
+    const index = this.schedules.findIndex(s => s.id === id)
+    if (index !== -1) {
+      this.schedules[index].is_active = false
+      this.schedules[index].status = 'completed'
+    }
+    
+    return { error: false }
+  } catch (err) {
+    console.error('Error ending schedule:', err)
+    return { error: true, message: err.message }
+  } finally {
+    this.isLoading = false
+  }
+},
     async updateTransaction(id, payload) {
       this.isLoading = true;
       try {
@@ -427,5 +455,51 @@ export const useFinanceStore = defineStore("financeStore", {
         this.isLoading = false;
       }
     },
+async updateScheduleStatus(id, newStatus) {
+  this.isLoading = true
+  try {
+    // 1. Update the automation's status in the database
+    const { error: updateError } = await supabase
+      .from('schedules')
+      .update({ status: newStatus })
+      .eq('id', id)
+
+    if (updateError) throw updateError
+
+    // 2. THE NEW CLEANUP LOGIC
+    // If we are killing the automation, wipe out its future/planned transactions
+    if (newStatus === 'completed' || newStatus === 'discontinued') {
+      const { error: cleanupError } = await supabase
+        .from('transactions') // Make sure this matches your actual table name
+        .delete()
+        .eq('schedule_id', id)
+        .eq('status', 'planned') // Change this if your column uses is_cleared: false or something similar
+
+      if (cleanupError) {
+        console.error('Failed to clean up planned transactions:', cleanupError)
+        // We don't throw here because the schedule status still successfully updated
+      }
+
+      // Optional: If your store also holds a global array of transactions, clean it up locally
+      if (this.transactions) {
+        this.transactions = this.transactions.filter(
+          t => !(t.schedule_id === id && t.status === 'planned')
+        )
+      }
+    }
+
+    // 3. Update the local UI state for the schedule grid
+    const index = this.schedules.findIndex(s => s.id === id)
+    if (index !== -1) {
+      this.schedules[index].status = newStatus
+    }
+    
+    return { error: false }
+  } catch (err) {
+    return { error: true, message: err.message }
+  } finally {
+    this.isLoading = false
+  }
+},
   },
 });
