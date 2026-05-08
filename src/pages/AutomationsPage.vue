@@ -119,16 +119,16 @@
             
             <div class="text-caption text-grey-7 q-mt-md">
               <div v-if="sched.action_type === 'income'">
-                <strong>Flow:</strong> Income &rarr; {{ sched.to_acc?.name || 'Unknown' }}
+                <strong>Flow:</strong> Income &rarr; {{ sched.to_account?.name || 'Unknown' }}
               </div>
               <div v-else-if="sched.action_type === 'transfer'">
-                <strong>Flow:</strong> {{ sched.from_acc?.name || 'Unknown' }} &rarr; {{ sched.to_acc?.name || 'Unknown' }}
+                <strong>Flow:</strong> {{ sched.from_account?.name || 'Unknown' }} &rarr; {{ sched.to_account?.name || 'Unknown' }}
               </div>
               <div v-else-if="sched.action_type === 'expense' && sched.loan_id">
-                <strong>Flow:</strong> {{ sched.from_acc?.name || 'Unknown' }} &rarr; Paying Loan: <strong class="text-red-9">{{ sched.loan?.name || 'Unknown' }}</strong>
+                <strong>Flow:</strong> {{ sched.from_account?.name || 'Unknown' }} &rarr; Paying Loan: <strong class="text-red-9">{{ sched.loan?.name || 'Unknown' }}</strong>
               </div>
               <div v-else>
-                <strong>Flow:</strong> {{ sched.from_acc?.name || 'Unknown' }} &rarr; Standard Expense
+                <strong>Flow:</strong> {{ sched.from_account?.name || 'Unknown' }} &rarr; Standard Expense
               </div>
             </div>
           </q-card-section>

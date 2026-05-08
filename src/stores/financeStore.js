@@ -1,6 +1,89 @@
 import { defineStore } from "pinia";
 import { supabase } from "@/supabase/config.js";
 
+/**
+ * Calculates the exact next payment date using a strict 12-month map.
+ */
+export const calculateNextPaymentDate = (lastDateStr, frequency) => {
+  const [yearStr, monthStr, dayStr] = lastDateStr.split('-');
+  let year = parseInt(yearStr);
+  let month = parseInt(monthStr); // 1 = Jan, 12 = Dec
+  let day = parseInt(dayStr);
+
+  // --- THE 12 MONTH TEMPLATE ---
+  const getDaysInMonth = (y, m) => {
+    // Check if it's a leap year (divisible by 4, but skip centuries unless divisible by 400)
+    const isLeapYear = (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0));
+    
+    const map = {
+      1: 31,  // Jan
+      2: isLeapYear ? 29 : 28, // Feb
+      3: 31,  // Mar
+      4: 30,  // Apr
+      5: 31,  // May
+      6: 30,  // Jun
+      7: 31,  // Jul
+      8: 31,  // Aug
+      9: 30,  // Sep
+      10: 31, // Oct
+      11: 30, // Nov
+      12: 31  // Dec
+    };
+    
+    return map[m];
+  };
+
+  let nextYear = year;
+  let nextMonth = month;
+  let nextDay = day;
+
+  // Function to safely roll over to the next month
+  const advanceMonth = () => {
+    if (nextMonth === 12) {
+      nextMonth = 1;
+      nextYear += 1;
+    } else {
+      nextMonth += 1;
+    }
+  };
+
+  const lastDayOfCurrentMonth = getDaysInMonth(year, month);
+
+  // --- FREQUENCY LOGIC ---
+  if (frequency === 'monthly') {
+    advanceMonth();
+    const maxDaysNextMonth = getDaysInMonth(nextYear, nextMonth);
+    nextDay = Math.min(day, maxDaysNextMonth); // If Jan 31, becomes Feb 28
+  } 
+  else if (frequency === '15_end') {
+    if (day < 15) {
+      nextDay = 15;
+    } else if (day < lastDayOfCurrentMonth) {
+      nextDay = lastDayOfCurrentMonth; // Snaps to exactly 28, 29, 30, or 31 based on your map
+    } else {
+      advanceMonth();
+      nextDay = 15;
+    }
+  } 
+  else if (frequency === '5_20') {
+    if (day < 5) { nextDay = 5; }
+    else if (day < 20) { nextDay = 20; }
+    else { advanceMonth(); nextDay = 5; }
+  } 
+  else if (frequency === '10_25') {
+    if (day < 10) { nextDay = 10; }
+    else if (day < 25) { nextDay = 25; }
+    else { advanceMonth(); nextDay = 10; }
+  }
+
+  // --- FORMAT BACK TO STRING ---
+  const fYear = nextYear;
+  const fMonth = String(nextMonth).padStart(2, '0');
+  const fDay = String(nextDay).padStart(2, '0');
+
+  return `${fYear}-${fMonth}-${fDay}`;
+}
+
 export const useFinanceStore = defineStore("financeStore", {
   state: () => ({
     isLoading: false,
@@ -26,12 +109,12 @@ export const useFinanceStore = defineStore("financeStore", {
             supabase.from("accounts").select("*").order("name"),
             supabase
               .from("transactions")
-              .select("*, from_acc:from_account(name), to_acc:to_account(name)")
+              .select("*, from_account:from_account(name), to_account:to_account(name)")
               .order("date", { ascending: false }),
             supabase
               .from("schedules")
               .select(
-                "*, from_acc:from_account(name), to_acc:to_account(name), loan:loan_id(name)",
+                "*, from_account:from_account(name), to_account:to_account(name), loan:loan_id(name)",
               )
               .order("created_at", { ascending: false }),
             supabase
@@ -83,8 +166,7 @@ export const useFinanceStore = defineStore("financeStore", {
       }
     },
 
-    // --- NEW: THE AUTOMATION ENGINE ---
-    async createSchedule(payload) {
+async createSchedule(payload) {
       this.isLoading = true;
       try {
         // 1. Save the Schedule rule to DB
@@ -95,45 +177,19 @@ export const useFinanceStore = defineStore("financeStore", {
           .single();
         if (schedErr) throw schedErr;
 
-// 2. Generate the exact future dates
+        // 2. Generate the exact future dates using the NEW template function!
         let dates = [];
-        let currDate = new Date(payload.start_date);
+        let currentDateStr = payload.start_date; 
         
-        // If recurring, generate 24 periods. If installment, use the provided duration.
+        // If recurring, generate 24 periods. If installment, use duration.
         let limit = payload.schedule_type === "installment" ? payload.duration : 24;
 
-       for (let i = 0; i < limit; i++) {
-          dates.push(currDate.toISOString().split("T")[0]);
-
-          if (payload.frequency === "monthly") {
-            currDate.setMonth(currDate.getMonth() + 1);
-          } else if (payload.frequency === "weekly") {
-            currDate.setDate(currDate.getDate() + 7);
-          } else if (payload.frequency === "biweekly") {
-            currDate.setDate(currDate.getDate() + 14);
-          } else {
-            // --- THE PHILIPPINE PAYDAY ENGINE ---
-            let y = currDate.getFullYear();
-            let m = currDate.getMonth();
-            let d = currDate.getDate();
-
-            let pd1 = 15; let pd2 = 'end'; 
-            if (payload.frequency === '5_20') { pd1 = 5; pd2 = 20; }
-            else if (payload.frequency === '10_25') { pd1 = 10; pd2 = 25; }
-
-            let actualPd2 = pd2 === 'end' ? new Date(y, m + 1, 0).getDate() : pd2;
-
-            if (d < pd1 || d >= actualPd2) {
-              if (d >= actualPd2) {
-                currDate = new Date(y, m + 1, pd1);
-              } else {
-                currDate = new Date(y, m, pd1);
-              }
-            } else {
-              currDate = new Date(y, m, actualPd2);
-            }
-          }
+        for (let i = 0; i < limit; i++) {
+          dates.push(currentDateStr); // Push the current valid date
+          // Magically calculate the next date for the next loop iteration
+          currentDateStr = calculateNextPaymentDate(currentDateStr, payload.frequency);
         }
+
         // 3. Batch generate the planned transactions
         const batchTransactions = dates.map((d) => ({
           schedule_id: schedule.id,
